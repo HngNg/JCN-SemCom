@@ -1,4 +1,4 @@
-# SwinJSCC & Massive MIMO 
+# JCN Semantic Communication
 There are 2 version of the system, one with MIMO and one without MIMO.
 
 ## Installation
@@ -34,7 +34,6 @@ python main.py --trainset DIV2K --testset kodak -- distortion-metric MSE --model
 This method can be apply on your own images.
 
 ## Related links
-* BPG image format by _Fabrice Bellard_: https://bellard.org/bpg
 * Sionna An Open-Source Library for Next-Generation Physical Layer Research: https://github.com/NVlabs/sionna
 * DIV2K image dataset: https://data.vision.ee.ethz.ch/cvl/DIV2K/
 * Kodak image dataset: http://r0k.us/graphics/kodak/
