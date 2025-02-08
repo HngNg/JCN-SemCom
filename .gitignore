@@ -1,7 +1,7 @@
 # specifically for this repo
 */results/*
 */SwinJSCC_w/*
-.DS_Store
+*/.DS_Store
 
 # pixi environments
 .pixi
