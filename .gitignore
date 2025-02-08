@@ -2,6 +2,7 @@
 */results/*
 */SwinJSCC_w/*
 */.DS_Store
+.DS_Store
 
 # pixi environments
 .pixi
@@ -360,4 +361,4 @@ tags
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/c,c++,vim,cuda,data,python,pythonvanilla,jupyternotebooks,visualstudiocode
+# End of https://www.toptal.com/developers/gitignore/api/c,c++,vim,cuda,data,python,pythonvanilla,jupyternotebooks,visualstudiocode.DS_Store
