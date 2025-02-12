@@ -1,8 +1,10 @@
 # specifically for this repo
 */results/*
 */SwinJSCC_w/*
-*/.DS_Store
-.DS_Store
+*.DS_Store
+SwinJSCC_mimo/.DS_Store
+SwinJSCC_siso/.DS_Store
+temp/Semantic_Forward/*
 
 # pixi environments
 .pixi

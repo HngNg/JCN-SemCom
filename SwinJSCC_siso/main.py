@@ -266,6 +266,7 @@ def train_one_epoch(args):
         meter.clear()
 
 def test():
+    
     config.isTrain = False
     net.eval()
     elapsed, psnrs, msssims, snrs, cbrs = [AverageMeter() for _ in range(5)]
@@ -274,6 +275,7 @@ def test():
     # Define multiple SNR values for testing (you can adjust these values)
     multiple_snr = [20, 15, 10, 5, 0, -5]
     channel_number = [int(args.C)]
+    print(f"channel_number: {channel_number}")
 
     results_snr = np.zeros((len(multiple_snr), len(channel_number)))
     results_cbr = np.zeros((len(multiple_snr), len(channel_number)))

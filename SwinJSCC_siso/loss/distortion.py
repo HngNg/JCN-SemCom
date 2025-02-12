@@ -210,9 +210,20 @@ class Distortion(torch.nn.Module):
             self.dist = SSIM()
         elif args.distortion_metric == 'MS-SSIM':
             if args.trainset == 'CIFAR10':
-                self.dist = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).cuda()
+                # if torch.cuda.is_available:
+                #     self.dist = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).cuda()
+                if torch.backends.mps.is_available:
+                    self.dist = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).to("mps")
+                else:
+                    self.dist = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).cpu()
             else:
-                self.dist = MS_SSIM(data_range=1., levels=4, channel=3).cuda()
+                # if torch.cuda.is_available:
+                #     self.dist = MS_SSIM(data_range=1., levels=4, channel=3).cuda()
+                if torch.backends.mps.is_available:
+                    self.dist = MS_SSIM(data_range=1., levels=4, channel=3).to("mps")
+                else:
+                    self.dist = MS_SSIM(data_range=1., levels=4, channel=3).cpu()
+
         else:
             args.logger.info("Unknown distortion type!")
             raise ValueError
