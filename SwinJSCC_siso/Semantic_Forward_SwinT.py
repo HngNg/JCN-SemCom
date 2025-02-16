@@ -48,61 +48,6 @@ else:
     device = torch.device("cpu")
     print("MPS device not available, using CPU")
 
-# =============================================================================
-#  Argument Parser
-# =============================================================================
-parser = argparse.ArgumentParser(description="SwinJSCC")
-parser.add_argument("--training", action="store_true", help="training or testing")
-parser.add_argument(
-    "--trainset",
-    type=str,
-    default="DIV2K",
-    choices=["CIFAR10", "DIV2K"],
-    help="train dataset name",
-)
-parser.add_argument(
-    "--testset",
-    type=str,
-    default="CLIC21",
-    choices=["kodak", "CLIC21", "ffhq"],
-    help="specify the testset for HR models",
-)
-parser.add_argument(
-    "--distortion-metric",
-    type=str,
-    default="MSE",
-    choices=["MSE", "MS-SSIM"],
-    help="evaluation metrics",
-)
-parser.add_argument(
-    "--model",
-    type=str,
-    default="SwinJSCC_w/_SAandRA",
-    choices=[
-        "SwinJSCC_w/o_SAandRA",
-        "SwinJSCC_w/_SA",
-        "SwinJSCC_w/_RA",
-        "SwinJSCC_w/_SAandRA",
-    ],
-    help="SwinJSCC model or SwinJSCC without channel ModNet or rate ModNet",
-)
-parser.add_argument(
-    "--channel-type", type=str, default="awgn", choices=["awgn", "rayleigh"]
-)
-parser.add_argument("--C", type=str, default="96", help="bottleneck dimension")
-parser.add_argument(
-    "--multiple-snr", type=str, default="10", help="random or fixed snr"
-)
-parser.add_argument(
-    "--model_size",
-    type=str,
-    default="base",
-    choices=["small", "base", "large"],
-    help="SwinJSCC model size",
-)
-args = parser.parse_args()
-
-
 
 # =============================================================================
 #  Configuration
@@ -127,12 +72,11 @@ class config():
     normalize = False
     learning_rate = 0.0001
     tot_epoch = 10000000
-
-
+    logger = None
     save_model_freq = 100
     image_dims = (3, 256, 256)
+    # train_data_dir = ["/media/D/Dataset/HR_Image_dataset/"]
     base_path = "Dataset/HR_Image_dataset/"
-    test_data_dir = ["Dataset/HR_Image_dataset/clic2021/test/"]
 
     train_data_dir = [base_path + '/clic2020/**',
                         base_path + '/clic2021/train',
@@ -155,9 +99,7 @@ class config():
         window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
-
-
-
+    
 # # =============================================================================
 # #  Create the MS-SSIM metric and send it to the selected device
 # # =============================================================================
@@ -481,7 +423,7 @@ if __name__ == "__main__":
     logger = logger_configuration(config, save_log=False)
     logger.info(config.__dict__)
     torch.manual_seed(seed=config.seed)
-    # train_loader, test_loader = get_loader(args, config)
+    # Running inference with CIFAR10 dataset
     data_tf = transforms.Compose([
     transforms.Resize((96, 96)),  # resize to 96x96
     transforms.ToTensor()
@@ -530,8 +472,8 @@ if __name__ == "__main__":
                     print(
                         f"===================== rho={rho:g}, snr={snr1:d} ===================="
                     )
-                    os.makedirs("images/", exist_ok=True)
-                    fname = f"images/snr{snr1:d}-rho{rho:g}.csv"
+                    os.makedirs("images2/", exist_ok=True)
+                    fname = f"images2/snr{snr1:d}-rho{rho:g}.csv"
                     if not os.path.exists(fname):
                         with open(fname, mode="a", newline="") as file:
                             writer = csv.writer(file)
