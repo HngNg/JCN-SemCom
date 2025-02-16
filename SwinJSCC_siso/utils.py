@@ -30,7 +30,6 @@ class AverageMeter:
 
 
 def logger_configuration(config, save_log=False, test_mode=False):
-    # 配置 logger
     logger = logging.getLogger("Deep joint source channel coder")
     if test_mode:
         config.workdir += '_test'

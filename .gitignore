@@ -2,9 +2,11 @@
 */results/*
 */SwinJSCC_w/*
 *.DS_Store
-SwinJSCC_mimo/.DS_Store
-SwinJSCC_siso/.DS_Store
 temp/Semantic_Forward/*
+*/images/*
+*/history/*
+*/data/*
+*/Dataset/*
 
 # pixi environments
 .pixi

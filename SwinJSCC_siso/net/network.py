@@ -71,9 +71,7 @@ class SwinJSCC(nn.Module):
                 noisy_feature = feature
 
         elif self.model == 'SwinJSCC_w/_RA' or self.model == 'SwinJSCC_w/_SAandRA':
-
             feature, mask = self.encoder(input_image, chan_param, channel_number, self.model)
-            
             CBR = channel_number / (2 * 3 * 2 ** (self.downsample * 2))
             avg_pwr = torch.sum(feature ** 2) / mask.sum()
             if self.pass_channel:
@@ -86,4 +84,3 @@ class SwinJSCC(nn.Module):
         mse = self.squared_difference(input_image * 255., recon_image.clamp(0., 1.) * 255.)
         loss_G = self.distortion_loss.forward(input_image, recon_image.clamp(0., 1.))
         return recon_image, CBR, chan_param, mse.mean(), loss_G.mean()
-

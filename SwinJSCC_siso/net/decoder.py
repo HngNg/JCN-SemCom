@@ -224,4 +224,3 @@ def build_model(config):
     for param in model.parameters():
         num_params += param.numel()
     print("TOTAL Params {}M".format(num_params / 10 ** 6))
-

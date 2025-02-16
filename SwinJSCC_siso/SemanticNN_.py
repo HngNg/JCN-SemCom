@@ -68,9 +68,6 @@ class SemanticNN(nn.Module):
 
         out = copy.deepcopy(torch.mul(out_tmp, out_max))
 
-        # Check the size.
-        print(f'Enc output shape: {out.shape}')
-
         # Convert quantized features to a binary bitstream.
         out = img2bin(out)
         return out
