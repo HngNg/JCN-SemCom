@@ -1,6 +1,7 @@
 from net.modules import *
 import torch
 from net.encoder import SwinTransformerBlock, AdaptiveModulator
+from torch import nn
 
 
 class BasicLayer(nn.Module):
@@ -153,7 +154,7 @@ class SwinJSCC_Decoder(nn.Module):
 
         elif model == 'SwinJSCC_w/_SAandRA':
             B, L, C = x.size()
-            device = x.get_device()
+            device = 'mps'
             snr_cuda = torch.tensor(snr, dtype=torch.float).to(device)
             snr_batch = snr_cuda.unsqueeze(0).expand(B, -1)
             for i in range(self.layer_num):

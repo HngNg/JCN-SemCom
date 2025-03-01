@@ -85,6 +85,12 @@ class CIFAR10(Dataset):
 
     def __len__(self):
         return self.len * 10
+    
+def worker_init_fn_seed(worker_id):
+    seed = 10
+    seed += worker_id
+    np.random.seed(seed)
+
 
 
 def get_loader(args, config):
@@ -113,7 +119,7 @@ def get_loader(args, config):
         train_dataset = dataset_(root=config.train_data_dir,
                                  train=True,
                                  transform=transform_train,
-                                 download=False)
+                                 download=True)
 
         test_dataset = dataset_(root=config.test_data_dir,
                                 train=False,
@@ -126,10 +132,6 @@ def get_loader(args, config):
         train_dataset = Datasets(config.train_data_dir)
         test_dataset = Datasets(config.test_data_dir)
 
-    def worker_init_fn_seed(worker_id):
-        seed = 10
-        seed += worker_id
-        np.random.seed(seed)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                num_workers=NUM_DATASET_WORKERS,

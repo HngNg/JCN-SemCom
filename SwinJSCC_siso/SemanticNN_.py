@@ -4,31 +4,28 @@ import numpy as np
 import torch
 from torch import nn
 
-
 def img2bin(x1):
-    # Convert an image tensor into a binary bitstream representation.
-    x = copy.deepcopy(x1).reshape(1, -1)  # flatten the image to a vector
-    x = (x / 2 + 0.5) * 255  # scale from [-1,1] to [0,255]
-    n = x.size()[1]  # number of pixels
-    y = torch.zeros([1, n * 8], dtype=int)  # allocate bitstream (8 bits per pixel)
+    x = x1.reshape(1, -1)  # convert to vector
+    x = (x / 2 + 0.5) * 255  # inverse of regularization
+    n = x.size()[1]  # sequence length
+    y = torch.zeros([1, n * 8], dtype=int)
     for i in range(n):
-        # Convert each pixel to an 8-bit binary string
         x2 = bin(int(min(max(x[0, i].item(), 0), 255)))[2:].zfill(8)
+        # print(bin(int(x[0, i].item())),x2)
         for j in range(8):
             y[0, i * 8 + j] = int(x2[j])
     return y
 
 
 def bin2img(y):
-    # Convert a binary bitstream back to an image tensor.
-    n = int(y.size()[1] / 8)  # number of pixels
+    n = int(y.size()[1] / 8)  # sequence length
     x = torch.zeros([1, n], dtype=torch.float)
     for i in range(n):
         arr = np.array(y[0, i * 8: (i + 1) * 8])
         y2 = ''.join(str(i) for i in arr)
-        # Convert binary string back to an integer pixel value
-        x[0, i] = int(y2, 2)
-    x = (x / 255. - 0.5) * 2  # rescale back to [-1,1]
+        for j in range(8):
+            x[0, i] = int(y2, 2)  # bin to digital
+    x = (x / 255. - 0.5) * 2  # regularization again
     return x
 
 class SemanticNN(nn.Module):
@@ -58,15 +55,15 @@ class SemanticNN(nn.Module):
         # Scale and quantize the feature map
         out = out.detach().cpu()
         out_max = torch.max(out)
-        out_tmp = copy.deepcopy(torch.div(out, out_max))
+        out_tmp = torch.div(out, out_max)
 
         # Quantize: scale to 256 levels, convert to int, then back to float.
-        out_tmp = copy.deepcopy(torch.mul(out_tmp, 256))
-        out_tmp = copy.deepcopy(out_tmp.clone().type(torch.int))
-        out_tmp = copy.deepcopy(out_tmp.clone().type(torch.float32))
-        out_tmp = copy.deepcopy(torch.div(out_tmp, 256))
+        out_tmp = torch.mul(out_tmp, 256)
+        out_tmp = out_tmp.clone().type(torch.int)
+        out_tmp = out_tmp.clone().type(torch.float32)
+        out_tmp = torch.div(out_tmp, 256)
 
-        out = copy.deepcopy(torch.mul(out_tmp, out_max))
+        out = torch.mul(out_tmp, out_max)
 
         # Convert quantized features to a binary bitstream.
         out = img2bin(out)
@@ -85,15 +82,15 @@ class SemanticNN(nn.Module):
         # Scale and quantize the output image
         out = out.detach().cpu()
         out_max = torch.max(out)
-        out_tmp = copy.deepcopy(torch.div(out, out_max))
+        out_tmp = torch.div(out, out_max)
 
         # Quantize the output
-        out_tmp = copy.deepcopy(torch.mul(out_tmp, 256))
-        out_tmp = copy.deepcopy(out_tmp.clone().type(torch.int))
-        out_tmp = copy.deepcopy(out_tmp.clone().type(torch.float32))
-        out_tmp = copy.deepcopy(torch.div(out_tmp, 256))
+        out_tmp = torch.mul(out_tmp, 256)
+        out_tmp = out_tmp.clone().type(torch.int)
+        out_tmp = out_tmp.clone().type(torch.float32)
+        out_tmp = torch.div(out_tmp, 256)
 
-        out = copy.deepcopy(torch.mul(out_tmp, out_max))
+        out = torch.mul(out_tmp, out_max)
         return out
 
     def forward(self, x):

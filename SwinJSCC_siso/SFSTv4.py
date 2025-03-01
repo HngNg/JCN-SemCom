@@ -22,11 +22,11 @@ import LDPC
 
 warnings.filterwarnings("ignore")
 
-results_path = 'results/test_results.csv'
+# results_path = 'results/test_results.csv'
 
-with open(results_path, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['SNR', 'CBR', 'PSNR', 'MSSSIM'])
+# with open(results_path, mode='w', newline='') as file:
+#     writer = csv.writer(file)
+#     writer.writerow(['SNR', 'CBR', 'PSNR', 'MSSSIM'])
 
 epoch_len = 1
 batch_size = 1
@@ -47,6 +47,61 @@ if torch.backends.mps.is_available():
 else:
     device = torch.device("cpu")
     print("MPS device not available, using CPU")
+
+# =============================================================================
+#  Argument Parser
+# =============================================================================
+parser = argparse.ArgumentParser(description="SwinJSCC")
+parser.add_argument("--training", action="store_true", help="training or testing")
+parser.add_argument(
+    "--trainset",
+    type=str,
+    default="DIV2K",
+    choices=["CIFAR10", "DIV2K"],
+    help="train dataset name",
+)
+parser.add_argument(
+    "--testset",
+    type=str,
+    default="CLIC21",
+    choices=["kodak", "CLIC21", "ffhq"],
+    help="specify the testset for HR models",
+)
+parser.add_argument(
+    "--distortion-metric",
+    type=str,
+    default="MSE",
+    choices=["MSE", "MS-SSIM"],
+    help="evaluation metrics",
+)
+parser.add_argument(
+    "--model",
+    type=str,
+    default="SwinJSCC_w/_SAandRA",
+    choices=[
+        "SwinJSCC_w/o_SAandRA",
+        "SwinJSCC_w/_SA",
+        "SwinJSCC_w/_RA",
+        "SwinJSCC_w/_SAandRA",
+    ],
+    help="SwinJSCC model or SwinJSCC without channel ModNet or rate ModNet",
+)
+parser.add_argument(
+    "--channel-type", type=str, default="awgn", choices=["awgn", "rayleigh"]
+)
+parser.add_argument("--C", type=str, default="96", help="bottleneck dimension")
+parser.add_argument(
+    "--multiple-snr", type=str, default="10", help="random or fixed snr"
+)
+parser.add_argument(
+    "--model_size",
+    type=str,
+    default="base",
+    choices=["small", "base", "large"],
+    help="SwinJSCC model size",
+)
+args = parser.parse_args()
+
 
 
 # =============================================================================
@@ -72,82 +127,104 @@ class config():
     normalize = False
     learning_rate = 0.0001
     tot_epoch = 10000000
-    logger = None
-    save_model_freq = 100
-    image_dims = (3, 256, 256)
-    # train_data_dir = ["/media/D/Dataset/HR_Image_dataset/"]
-    base_path = "Dataset/HR_Image_dataset/"
 
-    train_data_dir = [base_path + '/clic2020/**',
-                        base_path + '/clic2021/train',
-                        base_path + '/clic2021/valid',
-                        base_path + '/clic2022/val',
-                        base_path + '/DIV2K_train_HR',
-                        base_path + '/DIV2K_valid_HR']
-    batch_size = 16
-    downsample = 4
-    channel_number = 96
+
+    # save_model_freq = 100
+    # image_dims = (3, 256, 256)
+    # base_path = "Dataset/HR_Image_dataset/"
+    # test_data_dir = ["Dataset/HR_Image_dataset/clic2021/test/"]
+
+    # train_data_dir = [base_path + '/clic2020/**',
+    #                     base_path + '/clic2021/train',
+    #                     base_path + '/clic2021/valid',
+    #                     base_path + '/clic2022/val',
+    #                     base_path + '/DIV2K_train_HR',
+    #                     base_path + '/DIV2K_valid_HR']
+    # batch_size = 16
+    # downsample = 4
+    # channel_number = 96
+    # encoder_kwargs = dict(
+    #     img_size=(image_dims[1], image_dims[2]), patch_size=2, in_chans=3,
+    #     embed_dims=[128, 192, 256, 320], depths=[2, 2, 6, 2], num_heads=[4, 6, 8, 10], C=channel_number,
+    #     window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+    #     norm_layer=nn.LayerNorm, patch_norm=True,
+    # )
+    # decoder_kwargs = dict(
+    #     img_size=(image_dims[1], image_dims[2]),
+    #     embed_dims=[320, 256, 192, 128], depths=[2, 6, 2, 2], num_heads=[10, 8, 6, 4], C=channel_number,
+    #     window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+    #     norm_layer=nn.LayerNorm, patch_norm=True,
+    # )
+    save_model_freq = 5
+    image_dims = (3, 32, 32)
+    train_data_dir = "./Dataset/CIFAR10/"
+    test_data_dir = "./Dataset/CIFAR10/"
+    batch_size = 128
+    downsample = 2
+    channel_number = int(args.C)
     encoder_kwargs = dict(
         img_size=(image_dims[1], image_dims[2]), patch_size=2, in_chans=3,
-        embed_dims=[128, 192, 256, 320], depths=[2, 2, 6, 2], num_heads=[4, 6, 8, 10], C=channel_number,
-        window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        embed_dims=[128, 256], depths=[2, 4], num_heads=[4, 8], C=channel_number,
+        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
     decoder_kwargs = dict(
         img_size=(image_dims[1], image_dims[2]),
-        embed_dims=[320, 256, 192, 128], depths=[2, 6, 2, 2], num_heads=[10, 8, 6, 4], C=channel_number,
-        window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        embed_dims=[256, 128], depths=[4, 2], num_heads=[8, 4], C=channel_number,
+        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
-    
+
+
 # # =============================================================================
 # #  Create the MS-SSIM metric and send it to the selected device
 # # =============================================================================
-CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
+# CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
+CalcuSSIM = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).to("mps")
+
 
 
 def scale_8bit_weight(x):
-    # Vectorized scaling: multiply each element by a repeating weight [8,7,...,1]
-    n = x.size(1)
-    weights = torch.tensor([8,7,6,5,4,3,2,1], dtype=x.dtype, device=x.device)
-    rep = weights.repeat(n // 8 + 1)[:n]
-    return x * rep
+    n = x.size()[1]  # sequence length
+    w = range(8, 0, -1)  # np.power(2, range(7, -1, -1))
+    for i in range(n):
+        x[0, i] = x[0, i] * w[i % 8]
+    return x
 
 
 def img2bin(x1):
-    # Convert image tensor to a binary bitstream using vectorized operations.
-    # Input: x1 is assumed to be a torch tensor with values in [-1, 1]
-    # Flatten and rescale image to [0, 255]
-    x = x1.reshape(-1)
-    x = (x / 2 + 0.5) * 255
-    # Convert to numpy uint8
-    x_np = x.detach().cpu().numpy().astype(np.uint8)
-    # Use np.unpackbits to convert each uint8 to an 8-bit binary representation
-    bits = np.unpackbits(x_np)
-    # Return as a torch tensor with shape (1, number_of_pixels * 8)
-    return torch.from_numpy(bits.reshape(1, -1)).to(x1.device)
+    x = x1.reshape(1, -1)  # convert to vector
+    x = (x / 2 + 0.5) * 255  # inverse of regularization
+    n = x.size()[1]  # sequence length
+    y = torch.zeros([1, n * 8], dtype=int)
+    for i in range(n):
+        x2 = bin(int(min(max(x[0, i].item(), 0), 255)))[2:].zfill(8)
+        # print(bin(int(x[0, i].item())),x2)
+        for j in range(8):
+            y[0, i * 8 + j] = int(x2[j])
+    return y
 
 
 def bin2img(y):
-    # Convert a binary bitstream back to an image tensor using vectorized operations.
-    # y is expected to be a torch tensor of shape (1, number_of_pixels * 8)
-    y_np = y.detach().cpu().numpy().astype(np.uint8)
-    # Pack bits into uint8 numbers (each group of 8 bits becomes one pixel)
-    x_np = np.packbits(y_np, axis=1)
-    # Convert back to torch tensor and rescale from [0,255] to [-1,1]
-    x = torch.from_numpy(x_np.astype(np.float32)).to(y.device)
-    x = (x / 255. - 0.5) * 2
+    n = int(y.size()[1] / 8)  # sequence length
+    x = torch.zeros([1, n], dtype=torch.float)
+    for i in range(n):
+        arr = np.array(y[0, i * 8: (i + 1) * 8])
+        y2 = ''.join(str(i) for i in arr)
+        for j in range(8):
+            x[0, i] = int(y2, 2)  # bin to digital
+    x = (x / 255. - 0.5) * 2  # regularization again
     return x
 
 
 def data_tf(x):
-    # Transform function for CIFAR10: resize and normalize image.
-    x = x.resize((96, 96), 2)  # resize image to 96x96
-    x = np.array(x, dtype="float32") / 255  # scale to [0,1]
-    x = (x - 0.5) / 0.5  # normalize to [-1,1]
-    x = x.transpose((2, 0, 1))  # change to channel-first format
+    x = x.resize((96, 96), 2)  # shape of x: (96, 96, 3)
+    x = np.array(x, dtype='float32') / 255
+    x = (x - 0.5) / 0.5
+    x = x.transpose((2, 0, 1))
     x = torch.from_numpy(x)
     return x
+
 
 
 def merge_images(sources, targets, k=10):
@@ -166,25 +243,23 @@ def merge_images(sources, targets, k=10):
 
 
 def to_data(x):
-    """Converts a PyTorch tensor to a numpy array."""
+    """Converts variable to numpy."""
     # if torch.cuda.is_available():
     #     y = x.cpu()
     # else:
-    y = x.cpu()
+    #     y = x
+    y=x.cpu()
     return y.data.numpy()
 
 
 def calc_exinfo(Lp1, La1, g1, n1, n, k):
-    # Calculate extrinsic information for each group by subtracting previously 
-    # provided side information (La1) from the current LLRs (Lp1).
     X = torch.zeros_like(Lp1)
     for gi in range(g1 - 1):
-        si = gi * k       # start index for information bits
-        ei = (gi + 1) * k # end index for information bits
-        sni = gi * n      # start index for this group in the codeword
-        eni = gi * n + k  # end index corresponding to information bits
+        si = gi * k
+        ei = (gi + 1) * k
+        sni = gi * n
+        eni = gi * n + k
         X[sni:eni] = Lp1[sni:eni] - La1[si:ei]
-    # Process the last (possibly shorter) group
     sni = (g1 - 1) * n
     eni = (g1 - 1) * (n - k) + n1
     X[sni:eni] = Lp1[sni:eni] - La1[(g1 - 1) * k:]
@@ -192,62 +267,52 @@ def calc_exinfo(Lp1, La1, g1, n1, n, k):
 
 
 def LDPC_enc(G, X1):
-    # Encode the bitstream X1 with the LDPC generator matrix G.
     n1 = X1.size()[1]
-    n, k = G.shape  # n: code length, k: info bits length
-    g1 = int(np.ceil(n1 / k))  # number of groups
+    n, k = G.shape  # n: code length, k: information bits length
+    g1 = int(np.ceil(n1 / k))  # divide into groups
     C1 = torch.zeros([n * g1, 1])
     for gi in range(g1):
-        X_g = torch.zeros([k, 1])  # prepare group with zero padding if needed
+        X_g = torch.zeros([k, 1])  # padding "0" at the end of the last group
         si = gi * k
         ei = min((gi + 1) * k, n1)
         X_g[0:ei - si, 0] = X1[0, si:ei]
-        # Encode each group using LDPC
         C1[gi * n:(gi + 1) * n] = torch.tensor(LDPC.encode(G, X_g))
     return C1
 
 
 def LDPC_dec_LLR(Lp1, DEC_para1, g1, n1, n, k, La, maxiter):
-    # Perform one LDPC decoding iteration for each group.
-    # Optionally, use extrinsic (side) information La.
     for gi in range(g1):
         si = gi * n
         ei = (gi + 1) * n
         Lp = Lp1[si:ei]
         if La is None:
-            La1 = None  # no extrinsic info provided
+            La1 = None
         else:
-            # Prepare extrinsic info for the current group.
             ski = gi * k
             if gi < g1 - 1:
                 La1 = torch.zeros(1, n)
                 eki = (gi + 1) * k
                 La1[0, :k] = La[0, ski:eki]
             else:
-                # For the last group, assume default positive LLRs for padded bits.
-                La1 = torch.ones(1, n)
+                La1 = torch.ones(1, n)  # last bits are all 0，LLR should be positive
                 La1[0, :n1 - ski] = La[0, ski:n1]
-        # Decode the group with or without the extrinsic info.
         Lp1[si:ei] = LDPC.decode_LLR(Lp, **DEC_para1, La=La1, maxiter=maxiter)
     return Lp1
 
 
 def hard_decision(Lp2, g1, n1, n, k):
-    # Convert LLRs to hard bit decisions (0 or 1) for each group.
     X = torch.zeros([1, n1], dtype=int)
     for gi in range(g1 - 1):
         si = gi * k
         ei = (gi + 1) * k
         sni = gi * n
         eni = gi * n + k
-        # Decide bit=1 if LLR < 0, else 0.
         X[0, si:ei] = torch.tensor((Lp2[sni:eni] < 0).T)
     X[0, (g1 - 1) * k:] = torch.tensor((Lp2[(g1 - 1) * n:(g1 - 1) * (n - k) + n1] < 0).T)
     return X
 
 
 def LDPC_dec_init(H, Y1, snr1, g1, n):
-    # Initialize LDPC decoding by computing initial LLRs based on the noisy received signal.
     Lc1 = torch.zeros_like(Y1)
     for gi in range(g1):
         si = gi * n
@@ -257,12 +322,10 @@ def LDPC_dec_init(H, Y1, snr1, g1, n):
 
 
 def save_img(img, path):
-    # Save an image to disk.
     imageio.imwrite(path, Image.fromarray(np.uint8(img * 255)))
 
 
 def E_distance(x, y):
-    # Compute the mean squared error between two images.
     x1 = np.array(x.detach().cpu())
     y1 = np.array(y)
     return ((x1 - y1) ** 2).sum() / x1.size
@@ -277,7 +340,7 @@ def sf_relay(x, snr1, rho):
     d_v = 2  # Number of parity-check equations per bit
     d_c = 3  # Number of bits per parity-check equation
 
-    imgdir = f"images/snr{snr1}-rho{rho:g}"
+    imgdir = f"images_psnr_cifar/snr{snr1}-rho{rho:g}"
     os.makedirs(imgdir, exist_ok=True)
     print("x.shape: ", x.shape)
 
@@ -287,11 +350,8 @@ def sf_relay(x, snr1, rho):
     X2_img = x.reshape([batch_size, 3, 96, 96]).to(device)
 
     # Reconstruct the image using the semantic encoder/decoder
-    X2, CBR, psnr, msssim = simulator.infer(X2_img, snr1)
+    X2, CBR, _, msssim = simulator.infer(x, snr1)
     X2 = X2.reshape([batch_size, 3, 96, 96]).to(device)
-    with open(results_path, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([snr1, CBR, psnr, msssim])
 
     # LDPC PHY channel: prepare for encoding and transmission.
     n1 = X1.size()[1]
@@ -332,10 +392,15 @@ def sf_relay(x, snr1, rho):
         j1 = LDPC.BER(X1, X1_hat)
         s1 = LDPC.BER(X1, X1s_hat)
         print(f"BER s: {s1:g}, j: {j1:g}")
+        
+        #PSNR
+        squared_difference = torch.nn.MSELoss(reduction='none')
+        mse = squared_difference(x * 255., X2.clamp(0., 1.) * 255.)
+        mse_val = mse.mean()
+        psnr = 10 * (torch.log(255. * 255. / mse_val) / np.log(10))
 
         # Prepare images for visualization - Turn torch arr to np arr.
         X2_data = to_data(X2.reshape([batch_size, 3, 96, 96]))
-
         X1_data = to_data(bin2img(X1_hat).reshape([batch_size, 3, 96, 96]))
         X1s_data = to_data(bin2img(X1s_hat).reshape([batch_size, 3, 96, 96]))
 
@@ -348,6 +413,7 @@ def sf_relay(x, snr1, rho):
         ed1 = E_distance(x, X1_data)
         ed2 = E_distance(x, X2_data)
         print(f"EDs: {ed1s:g}, EDj: {ed1:g}, ED2: {ed2:g}")
+        print(f"PSNR: {psnr:g}")
         save_img(
             merged,
             os.path.join(
@@ -407,9 +473,9 @@ def sf_relay(x, snr1, rho):
         X1_hat = hard_decision(Lp1, g1, n1, n, k)
 
         # Log various metrics to a CSV file for later analysis.
-        with open(f"images/snr{snr1:d}-rho{rho:g}.csv", mode="a", newline="") as file:
+        with open(f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv", mode="a", newline="") as file:
             writer = csv.writer(file)
-            data = [e, i, s1, j1, ed1s, ed1, ed2, Lp1_max, La1_max, Lp2_max, La2_max]
+            data = [e, i, s1, j1, ed1s, ed1, ed2, psnr.item(), Lp1_max, La1_max, Lp2_max, La2_max]
             writer.writerow(data)
 
 
@@ -423,10 +489,14 @@ if __name__ == "__main__":
     logger = logger_configuration(config, save_log=False)
     logger.info(config.__dict__)
     torch.manual_seed(seed=config.seed)
-    # Running inference with CIFAR10 dataset
+    # train_loader, test_loader = get_loader(args, config)
+    # data_tf = transforms.Compose([
+    # transforms.Resize((96, 96)),  # resize to 96x96
+    # transforms.ToTensor()
+    # ])
     data_tf = transforms.Compose([
-    transforms.Resize((96, 96)),  # resize to 96x96
-    transforms.ToTensor()
+        transforms.Resize((96, 96)),
+        transforms.ToTensor()
     ])
     test_set = datasets.CIFAR10('./data', train=False, transform=data_tf, download=True)
     
@@ -466,14 +536,14 @@ if __name__ == "__main__":
         # for batch_idx, batch in enumerate(test_loader):
 
             # Iterate over different corruption probabilities (rho) and SNR values.
-            for rho in [0.05, 0.15, 0.35, 0]:
+            for rho in [0.05, 0.35, 1, 0]:
                 for snr1 in range(-5, 10):
-                # for i, SNR in enumerate(multiple_snr):
+                # for snr1 in range (10,11):
                     print(
                         f"===================== rho={rho:g}, snr={snr1:d} ===================="
                     )
-                    os.makedirs("images2/", exist_ok=True)
-                    fname = f"images2/snr{snr1:d}-rho{rho:g}.csv"
+                    os.makedirs("images_psnr_cifar/", exist_ok=True)
+                    fname = f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv"
                     if not os.path.exists(fname):
                         with open(fname, mode="a", newline="") as file:
                             writer = csv.writer(file)
@@ -485,6 +555,7 @@ if __name__ == "__main__":
                                 "EDs",
                                 "EDj",
                                 "ED_semantic",
+                                "PSNR",
                                 "Lp1_max",
                                 "La1_max",
                                 "Lp2_max",
@@ -493,9 +564,61 @@ if __name__ == "__main__":
                             writer.writerow(data)
 
                     # Run the simulation function (which includes extrinsic information exchange).
-                    # X2 = swintjscc(im.reshape([batch_size, 3, 96, 96]).to(device), snr1)
                     sf_relay(im, snr1, rho)
+                    # X2, CBR, psnr, msssim = simulator.infer(im.reshape([batch_size, 3, 96, 96]).to(device), snr1)
 
             counter += 1
             if counter >= 32:
                 break
+            #Take the first image only
+            break
+
+        # ------------------------------- Below code is to test a single image -------------------------------
+
+
+        # index = 42
+        # im, label = test_set[index]
+        # im = im.unsqueeze(0)
+        
+        # print("Epoch %d-%d:" % (e, counter))
+        # # im = Variable(im)
+        # im = im.to(device)
+
+        # # Iterate over different corruption probabilities (rho) and SNR values.
+        # for rho in [0.05, 0.35, 1, 0]:
+        #     snr_list =  [-5, 0, 5]
+        #     for snr1 in snr_list:
+        #     # for snr1 in range (10,11):
+        #         print(
+        #             f"===================== rho={rho:g}, snr={snr1:d} ===================="
+        #         )
+        #         os.makedirs("images_psnr_cifar/", exist_ok=True)
+        #         fname = f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv"
+        #         if not os.path.exists(fname):
+        #             with open(fname, mode="a", newline="") as file:
+        #                 writer = csv.writer(file)
+        #                 data = [
+        #                     "epoch",
+        #                     "iter_round",
+        #                     "BERs",
+        #                     "BERj",
+        #                     "EDs",
+        #                     "EDj",
+        #                     "ED_semantic",
+        #                     "PSNR",
+        #                     "Lp1_max",
+        #                     "La1_max",
+        #                     "Lp2_max",
+        #                     "La2_max",
+        #                 ]
+        #                 writer.writerow(data)
+
+        #         # Run the simulation function (which includes extrinsic information exchange).
+        #         sf_relay(im, snr1, rho)
+        #         # X2, CBR, psnr, msssim = simulator.infer(im.reshape([batch_size, 3, 96, 96]).to(device), snr1)
+
+        # counter += 1
+        # if counter >= 32:
+        #     break
+        # #Take the first image only
+        # break

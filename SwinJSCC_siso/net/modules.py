@@ -1,5 +1,5 @@
 import torch.nn as nn
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_
 import torch
 from bisect import bisect
 import torch.nn.functional as F
@@ -187,8 +187,6 @@ class PatchMerging(nn.Module):
         """
         H, W = self.input_resolution
         B, L, C = x.shape
-        # print(x.shape)
-        # print(self.input_resolution)
         assert L == H * W, "input feature has wrong size"
         assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
         x = x.view(B, H, W, C)
@@ -264,7 +262,7 @@ class PatchReverseMerging(nn.Module):
         x = nn.PixelShuffle(2)(x)
         # x = self.proj(x).flatten(2).transpose(1, 2)
         # x = self.norm(x)
-        # print(x.shape)
+
         x = x.flatten(2).permute(0, 2, 1)
         return x
 

@@ -129,33 +129,33 @@ class SwinJSCCInference:
         # Keep a copy of the original 96x96 if we need it for metrics
         orig_image_96 = None
 
-        # (2) Conditional padding
-        if (H, W) == (96, 96):
-            self.logger.info("Input is 96x96, padding to 256x256.")
-            # Save original for final metrics
-            orig_image_96 = image_tensor.clone()
+        # # (2) Conditional padding
+        # if (H, W) == (96, 96):
+        #     self.logger.info("Input is 96x96, padding to 256x256.")
+        #     # Save original for final metrics
+        #     orig_image_96 = image_tensor.clone()
 
-            # Create a padded canvas of 256x256
-            # We'll place the 96x96 in the top-left corner (you could center it if you prefer).
-            padded_image = torch.zeros((1, 3, 256, 256), device=image_tensor.device)
+        #     # Create a padded canvas of 256x256
+        #     # We'll place the 96x96 in the top-left corner (you could center it if you prefer).
+        #     padded_image = torch.zeros((1, 3, 256, 256), device=image_tensor.device)
 
-            # Copy the original 96x96 region into the top-left corner of the 256x256 canvas
-            padded_image[:, :, :96, :96] = orig_image_96
-            # Now the "image_tensor" that we feed to the network is this padded version
-            image_tensor = padded_image
-        elif (H, W) == (256, 256):
-            self.logger.info("Input is 256x256; proceeding as is.")
-        elif (H, W) == (768, 768):
-            self.logger.info("Input is 768x768; proceeding as is.")
-        else:
-            msg = (f"Unsupported input resolution {H}x{W}. "
-                "Please use 96x96, 256x256, or 768x768.")
-            self.logger.error(msg)
-            raise ValueError(msg)
+        #     # Copy the original 96x96 region into the top-left corner of the 256x256 canvas
+        #     padded_image[:, :, :96, :96] = orig_image_96
+        #     # Now the "image_tensor" that we feed to the network is this padded version
+        #     image_tensor = padded_image
+        # elif (H, W) == (256, 256):
+        #     self.logger.info("Input is 256x256; proceeding as is.")
+        # elif (H, W) == (768, 768):
+        #     self.logger.info("Input is 768x768; proceeding as is.")
+        # else:
+        #     msg = (f"Unsupported input resolution {H}x{W}. "
+        #         "Please use 96x96, 256x256, or 768x768.")
+        #     self.logger.error(msg)
+        #     raise ValueError(msg)
 
         # (3) Move the (possibly padded) input to the device
         image_tensor = image_tensor.to(self.device)
-        self.logger.info(f"Starting inference with SNR={SNR_value}, rate={rate_value}")
+        # self.logger.info(f"Starting inference with SNR={SNR_value}, rate={rate_value}")
         start_time = time.time()
 
         # (4) Forward pass
@@ -181,9 +181,16 @@ class SwinJSCCInference:
             ref_image = image_tensor  # already 256x256 or 768x768
 
         # Compute MSE in [0,1] range
-        mse_val = torch.mean((ref_image - recon_image_96.clamp(0., 1.)).pow(2))
+        # mse_val = torch.mean((ref_image - recon_image_96.clamp(0., 1.)).pow(2))
+        
+        #PSNR
+        squared_difference = torch.nn.MSELoss(reduction='none')
+        mse = squared_difference(ref_image * 255., recon_image_96.clamp(0., 1.) * 255.)
+        mse_val = mse.mean()
+        psnr = 10 * (torch.log(255. * 255. / mse_val) / np.log(10))
+
         if mse_val.item() > 0:
-            psnr = 10 * (torch.log(255. * 255. / mse_val) / np.log(10))
+            # psnr = 10 * (torch.log(255. * 255. / mse_val) / np.log(10))
             msssim_val = 1 - self.CalcuSSIM(ref_image, recon_image_96.clamp(0., 1.)).mean().item()
         else:
             psnr = 100.0
@@ -198,17 +205,17 @@ class SwinJSCCInference:
                 msssim_val
             )
         )
-        print(
-            f"Inference Time: {elapsed:.3f}s, "
-            f"CBR: {CBR:.4f}, "
-            f"SNR: {SNR_out:.1f}, "
-            f"PSNR: {psnr:.3f}, "
-            f"MS-SSIM: {msssim_val:.3f}"
-        )
-        print("Final output shape:", recon_image_96.shape)
+        # print(
+        #     f"Inference Time: {elapsed:.3f}s, "
+        #     f"CBR: {CBR:.4f}, "
+        #     f"SNR: {SNR_out:.1f}, "
+        #     f"PSNR: {psnr:.3f}, "
+        #     f"MS-SSIM: {msssim_val:.3f}"
+        # )
+        # print("Final output shape:", recon_image_96.shape)
 
         # (8) Return the unpadded reconstruction (96x96) if applicable
-        return recon_image_96, CBR, psnr, msssim_val
+        return recon_image_96, CBR, psnr.item() if isinstance(psnr, torch.Tensor) else psnr, msssim_val
 
 if __name__ == '__main__':
     # 1) Prepare the CIFAR10 test set (96x96)
@@ -232,12 +239,13 @@ if __name__ == '__main__':
     # 4) Run inference on each batch of the test data
     #    Each batch is shape [batch_size, 3, 96, 96].
     for batch_idx, (images, labels) in enumerate(test_data):
-        # Pass the entire batch (images) to simulator.infer()
-        # The class will automatically resize/pad to 256x256 if needed (per your logic).
-        output_images = simulator.infer(images)
+        for snr_ in range (-5, 2):
+            # Pass the entire batch (images) to simulator.infer()
+            # The class will automatically resize/pad to 256x256 if needed (per your logic).
+            output_images = simulator.infer(images, SNR_value=snr_)
 
-        # If you want to do something with 'output_images' (e.g. save them or compute metrics),
-        # you can do that here.
+            # If you want to do something with 'output_images' (e.g. save them or compute metrics),
+            # you can do that here.
 
-        if batch_idx % 10 == 0:
-            print(f"Processed batch {batch_idx}/{len(test_data)}")
+            # if batch_idx % 10 == 0:
+                # print(f"Processed batch {batch_idx}/{len(test_data)}")

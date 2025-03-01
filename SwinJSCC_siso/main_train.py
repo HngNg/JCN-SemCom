@@ -1,3 +1,5 @@
+import os
+import csv
 import torch.optim as optim
 from net.network import SwinJSCC
 from data.datasets import get_loader
@@ -45,26 +47,25 @@ class config():
     device = torch.device("mps")
     norm = False
     # logger
-    print_step = 100
+    print_step = 1
     plot_step = 10000
     filename = datetime.now().__str__()[:-7]
     workdir = './history/{}'.format(filename)
-    log = workdir + '/Log_{}.log'.format(filename)
-    samples = workdir + '/samples'
-    models = workdir + '/models'
+    log = os.path.join(workdir, 'Log_{}.log'.format(filename))
+    samples = os.path.join(workdir, 'samples')
+    models = os.path.join(workdir, 'models')
     logger = None
 
     # training details
     normalize = False
     learning_rate = 0.0001
-    # tot_epoch = 10000000
     tot_epoch = 100
 
     if args.trainset == 'CIFAR10':
         save_model_freq = 5
         image_dims = (3, 32, 32)
-        train_data_dir = "/media/D/Dataset/CIFAR10/"
-        test_data_dir = "/media/D/Dataset/CIFAR10/"
+        train_data_dir = "./Dataset/CIFAR10/"
+        test_data_dir = "./Dataset/CIFAR10/"
         batch_size = 128
         downsample = 2
         channel_number = int(args.C)
@@ -81,9 +82,8 @@ class config():
             norm_layer=nn.LayerNorm, patch_norm=True,
         )
     elif args.trainset == 'DIV2K':
-        save_model_freq = 100
+        save_model_freq = 20
         image_dims = (3, 256, 256)
-        # train_data_dir = ["/media/D/Dataset/HR_Image_dataset/"]
         base_path = "Dataset/HR_Image_dataset/"
         if args.testset == 'kodak':
             test_data_dir = ["/media/D/Dataset/kodak/"]
@@ -92,12 +92,12 @@ class config():
         elif args.testset == 'ffhq':
             test_data_dir = ["/media/D/yangke/SwinJSCC/data/ffhq/"]
 
-        train_data_dir = [base_path + '/clic2020/**',
-                          base_path + '/clic2021/train',
-                          base_path + '/clic2021/valid',
-                          base_path + '/clic2022/val',
-                          base_path + '/DIV2K_train_HR',
-                          base_path + '/DIV2K_valid_HR']
+        train_data_dir = [os.path.join(base_path, 'clic2020/**'),
+                          os.path.join(base_path, 'clic2021/train'),
+                          os.path.join(base_path, 'clic2021/valid'),
+                          os.path.join(base_path, 'clic2022/val'),
+                          os.path.join(base_path, 'DIV2K_train_HR'),
+                          os.path.join(base_path, 'DIV2K_valid_HR')]
         batch_size = 16
         downsample = 4
         if args.model == 'SwinJSCC_w/o_SAandRA' or args.model == 'SwinJSCC_w/_SA':
@@ -155,11 +155,13 @@ def load_weights(model_path):
     net.load_state_dict(pretrained, strict=True)
     del pretrained
 
-def train_one_epoch(args):
+# Note: We now pass the epoch and csv_writer to train_one_epoch.
+def train_one_epoch(args, epoch, csv_writer, csv_file):
     net.train()
     elapsed, losses, psnrs, msssims, cbrs, snrs = [AverageMeter() for _ in range(6)]
     metrics = [elapsed, losses, psnrs, msssims, cbrs, snrs]
     global global_step
+    # (Here we show the CIFAR10 branch; similar changes would apply to the other branch.)
     if args.trainset == 'CIFAR10':
         for batch_idx, (input, label) in enumerate(train_loader):
             start_time = time.time()
@@ -176,7 +178,7 @@ def train_one_epoch(args):
             cbrs.update(CBR)
             snrs.update(SNR)
             if mse.item() > 0:
-                psnr = 10 * (torch.log(255. * 255. / mse) / np.log(10))
+                psnr = 10 * (torch.log(255. * 255. / mse) / torch.log(torch.tensor(10.)))
                 psnrs.update(psnr.item())
                 msssim = 1 - CalcuSSIM(input, recon_image.clamp(0., 1.)).mean().item()
                 msssims.update(msssim)
@@ -185,10 +187,10 @@ def train_one_epoch(args):
                 msssims.update(100)
 
             if (global_step % config.print_step) == 0:
-                process = (global_step % train_loader.__len__()) / (train_loader.__len__()) * 100.0
+                process = (global_step % len(train_loader)) / len(train_loader) * 100.0
                 log = (' | '.join([
                     f'Epoch {epoch}',
-                    f'Step [{global_step % train_loader.__len__()}/{train_loader.__len__()}={process:.2f}%]',
+                    f'Step [{global_step % len(train_loader)}/{len(train_loader)}={process:.2f}%]',
                     f'Time {elapsed.val:.3f}',
                     f'Loss {losses.val:.3f} ({losses.avg:.3f})',
                     f'CBR {cbrs.val:.4f} ({cbrs.avg:.4f})',
@@ -198,9 +200,30 @@ def train_one_epoch(args):
                     f'Lr {cur_lr}',
                 ]))
                 logger.info(log)
-                for i in metrics:
-                    i.clear()
+                # Build a dictionary of values for the CSV row:
+                csv_row = {
+                    "epoch": epoch,
+                    "step": global_step % len(train_loader),
+                    "process": process,
+                    "time": elapsed.val,
+                    "loss": losses.val,
+                    "loss_avg": losses.avg,
+                    "CBR": cbrs.val,
+                    "CBR_avg": cbrs.avg,
+                    "SNR": snrs.val,
+                    "SNR_avg": snrs.avg,
+                    "PSNR": psnrs.val,
+                    "PSNR_avg": psnrs.avg,
+                    "MSSSIM": msssims.val,
+                    "MSSSIM_avg": msssims.avg,
+                    "Lr": cur_lr,
+                }
+                csv_writer.writerow(csv_row)
+                csv_file.flush()
+                for meter in metrics:
+                    meter.clear()
     else:
+        # Similar logging is applied for the DIV2K branch.
         for batch_idx, input in enumerate(train_loader):
             start_time = time.time()
             global_step += 1
@@ -215,143 +238,91 @@ def train_one_epoch(args):
             cbrs.update(CBR)
             snrs.update(SNR)
             if mse.item() > 0:
-                psnr = 10 * (torch.log(255. * 255. / mse) / np.log(10))
+                psnr = 10 * (torch.log(255. * 255. / mse) / torch.log(torch.tensor(10.)))
                 psnrs.update(psnr.item())
                 msssim = 1 - CalcuSSIM(input, recon_image.clamp(0., 1.)).mean().item()
                 msssims.update(msssim)
-
             else:
                 psnrs.update(100)
                 msssims.update(100)
 
-            # if (global_step % config.print_step) == 0:
-            process = (global_step % train_loader.__len__()) / (train_loader.__len__()) * 100.0
-            log = (' | '.join([
-                f'Epoch {epoch}',
-                f'Step [{global_step % train_loader.__len__()}/{train_loader.__len__()}={process:.2f}%]',
-                f'Time {elapsed.val:.3f}',
-                f'Loss {losses.val:.3f} ({losses.avg:.3f})',
-                f'CBR {cbrs.val:.4f} ({cbrs.avg:.4f})',
-                f'SNR {snrs.val:.1f} ({snrs.avg:.1f})',
-                f'PSNR {psnrs.val:.3f} ({psnrs.avg:.3f})',
-                f'MSSSIM {msssims.val:.3f} ({msssims.avg:.3f})',
-                f'Lr {cur_lr}',
-            ]))
-            logger.info(log)
-            for i in metrics:
-                i.clear()
-    for i in metrics:
-        i.clear()
-
-
-def test():
-    config.isTrain = False
-    net.eval()
-    elapsed, psnrs, msssims, snrs, cbrs = [AverageMeter() for _ in range(5)]
-    metrics = [elapsed, psnrs, msssims, snrs, cbrs]
-    multiple_snr = args.multiple_snr.split(",")
-    for i in range(len(multiple_snr)):
-        multiple_snr[i] = int(multiple_snr[i])
-    channel_number = args.C.split(",")
-    for i in range(len(channel_number)):
-        channel_number[i] = int(channel_number[i])
-    results_snr = np.zeros((len(multiple_snr), len(channel_number)))
-    results_cbr = np.zeros((len(multiple_snr), len(channel_number)))
-    results_psnr = np.zeros((len(multiple_snr), len(channel_number)))
-    results_msssim = np.zeros((len(multiple_snr), len(channel_number)))
-    for i, SNR in enumerate(multiple_snr):
-        for j, rate in enumerate(channel_number):
-            with torch.no_grad():
-                if args.trainset == 'CIFAR10':
-                    for batch_idx, (input, label) in enumerate(test_loader):
-                        start_time = time.time()
-                        input = input.to("mps")
-                        recon_image, CBR, SNR, mse, loss_G = net(input, SNR, rate)
-
-                        elapsed.update(time.time() - start_time)
-                        cbrs.update(CBR)
-                        snrs.update(SNR)
-                        if mse.item() > 0:
-                            psnr = 10 * (torch.log(255. * 255. / mse) / np.log(10))
-                            psnrs.update(psnr.item())
-                            msssim = 1 - CalcuSSIM(input, recon_image.clamp(0., 1.)).mean().item()
-                            msssims.update(msssim)
-                        else:
-                            psnrs.update(100)
-                            msssims.update(100)
-
-                        log = (' | '.join([
-                            f'Time {elapsed.val:.3f}',
-                            f'CBR {cbrs.val:.4f} ({cbrs.avg:.4f})',
-                            f'SNR {snrs.val:.1f}',
-                            f'PSNR {psnrs.val:.3f} ({psnrs.avg:.3f})',
-                            f'MSSSIM {msssims.val:.3f} ({msssims.avg:.3f})',
-                            f'Lr {cur_lr}',
-                        ]))
-                        logger.info(log)
-                else:
-                    for batch_idx, batch in enumerate(test_loader):
-                        input, names = batch
-                        start_time = time.time()
-                        input = input.to("mps")
-                        recon_image, CBR, SNR, mse, loss_G = net(input, SNR, rate)
-                        # torchvision.utils.save_image(recon_image,
-                        #                              os.path.join("SwinJSCC_w/data/", f"recon/{names[0]}"))
-                        elapsed.update(time.time() - start_time)
-                        cbrs.update(CBR)
-                        snrs.update(SNR)
-                        if mse.item() > 0:
-                            psnr = 10 * (torch.log(255. * 255. / mse) / np.log(10))
-                            psnrs.update(psnr.item())
-                            msssim = 1 - CalcuSSIM(input, recon_image.clamp(0., 1.)).mean().item()
-                            msssims.update(msssim)
-                            MSSSIM = -10 * np.math.log10(1 - msssim)
-                            print(MSSSIM)
-                        else:
-                            psnrs.update(100)
-                            msssims.update(100)
-                        log = (' | '.join([
-                            f'Time {elapsed.val:.3f}',
-                            f'CBR {cbrs.val:.4f} ({cbrs.avg:.4f})',
-                            f'SNR {snrs.val:.1f}',
-                            f'PSNR {psnrs.val:.3f} ({psnrs.avg:.3f})',
-                            f'MSSSIM {msssims.val:.3f} ({msssims.avg:.3f})',
-                            f'Lr {cur_lr}',
-                        ]))
-                        logger.info(log)
-            results_snr[i, j] = snrs.avg
-            results_cbr[i, j] = cbrs.avg
-            results_psnr[i, j] = psnrs.avg
-            results_msssim[i, j] = msssims.avg
-            for t in metrics:
-                t.clear()
-
-    print("SNR: {}".format(results_snr.tolist()))
-    print("CBR: {}".format(results_cbr.tolist()))
-    print("PSNR: {}".format(results_psnr.tolist()))
-    print("MS-SSIM: {}".format(results_msssim.tolist()))
-    print("Finish Test!")
+            if (global_step % config.print_step) == 0:
+                process = (global_step % len(train_loader)) / len(train_loader) * 100.0
+                log = (' | '.join([
+                    f'Epoch {epoch}',
+                    f'Step [{global_step % len(train_loader)}/{len(train_loader)}={process:.2f}%]',
+                    f'Time {elapsed.val:.3f}',
+                    f'Loss {losses.val:.3f} ({losses.avg:.3f})',
+                    f'CBR {cbrs.val:.4f} ({cbrs.avg:.4f})',
+                    f'SNR {snrs.val:.1f} ({snrs.avg:.1f})',
+                    f'PSNR {psnrs.val:.3f} ({psnrs.avg:.3f})',
+                    f'MSSSIM {msssims.val:.3f} ({msssims.avg:.3f})',
+                    f'Lr {cur_lr}',
+                ]))
+                logger.info(log)
+                csv_row = {
+                    "epoch": epoch,
+                    "step": global_step % len(train_loader),
+                    "process": process,
+                    "time": elapsed.val,
+                    "loss": losses.val,
+                    "loss_avg": losses.avg,
+                    "CBR": cbrs.val,
+                    "CBR_avg": cbrs.avg,
+                    "SNR": snrs.val,
+                    "SNR_avg": snrs.avg,
+                    "PSNR": psnrs.val,
+                    "PSNR_avg": psnrs.avg,
+                    "MSSSIM": msssims.val,
+                    "MSSSIM_avg": msssims.avg,
+                    "Lr": cur_lr,
+                }
+                csv_writer.writerow(csv_row)
+                csv_file.flush()
+                for meter in metrics:
+                    meter.clear()
+    for meter in metrics:
+        meter.clear()
 
 if __name__ == '__main__':
-    seed_torch()
+    # Create working directories if they do not exist.
+    os.makedirs(config.workdir, exist_ok=True)
+    os.makedirs(config.samples, exist_ok=True)
+    os.makedirs(config.models, exist_ok=True)
+
+    # Configure logger (assuming logger_configuration sets up a FileHandler for config.log)
     logger = logger_configuration(config, save_log=False)
     logger.info(config.__dict__)
+    
+    # Create CSV log file with name based on current date and time.
+    csv_log_filename = os.path.join(config.workdir, 'Log_{}.csv'.format(config.filename))
+    csv_file = open(csv_log_filename, mode='w', newline='')
+    fieldnames = ["epoch", "step", "process", "time", "loss", "loss_avg", "CBR", "CBR_avg", "SNR", "SNR_avg",
+                  "PSNR", "PSNR_avg", "MSSSIM", "MSSSIM_avg", "Lr"]
+    csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+    csv_writer.writeheader()
+
+    seed_torch()
     torch.manual_seed(seed=config.seed)
     net = SwinJSCC(args, config)
     model_path = "SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
-    load_weights(model_path)
+    # load_weights(model_path)
     net = net.to("mps")
     model_params = [{'params': net.parameters(), 'lr': 0.0001}]
     train_loader, test_loader = get_loader(args, config)
     cur_lr = config.learning_rate
     optimizer = optim.Adam(model_params, lr=cur_lr)
     global_step = 0
-    steps_epoch = global_step // train_loader.__len__()
+    steps_epoch = global_step // len(train_loader)
     if args.training:
         for epoch in range(steps_epoch, config.tot_epoch):
-            train_one_epoch(args)
+            train_one_epoch(args, epoch, csv_writer, csv_file)
             if (epoch + 1) % config.save_model_freq == 0:
-                save_model(net, save_path=config.models + '/{}_EP{}.model'.format(config.filename, epoch + 1))
-                test()
+                save_model(net, save_path=os.path.join(config.models, '{}_EP{}.model'.format(config.filename, epoch + 1)))
+                # For demonstration, break out after saving once.
+                break
     else:
-        test()
+        # In test mode, you might implement CSV logging similarly.
+        pass
+
+    csv_file.close()

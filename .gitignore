@@ -3,10 +3,16 @@
 */SwinJSCC_w/*
 *.DS_Store
 temp/Semantic_Forward/*
-*/images/*
+*/image*
+
 */history/*
 */data/*
+*/dtmp/*
 */Dataset/*
+*/Semantic_Forward*
+*/visualizer*
+__azurite_db_blob*
+
 
 # pixi environments
 .pixi

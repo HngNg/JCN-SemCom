@@ -1,5 +1,6 @@
 from net.modules import *
 import torch
+from torch import nn
 
 class SwinTransformerBlock(nn.Module):
 
@@ -239,7 +240,7 @@ class SwinJSCC_Encoder(nn.Module):
                                qkv_bias=qkv_bias, qk_scale=qk_scale,
                                norm_layer=norm_layer,
                                downsample=PatchMerging if i_layer != 0 else None)
-            print("Encoder ", layer.extra_repr())
+
             self.layers.append(layer)
         self.norm = norm_layer(embed_dims[-1])
         if C != None:
@@ -277,7 +278,7 @@ class SwinJSCC_Encoder(nn.Module):
         x = self.patch_embed(x)
         for i_layer, layer in enumerate(self.layers):
             x = layer(x)
-            print(x.mean())
+
         x = self.norm(x)
 
         if model == 'SwinJSCC_w/o_SAandRA':
@@ -326,6 +327,7 @@ class SwinJSCC_Encoder(nn.Module):
             return x, mask
 
         elif model == 'SwinJSCC_w/_SAandRA':
+            device = 'mps'
             snr_cuda = torch.tensor(snr, dtype=torch.float).to(device)
             rate_cuda = torch.tensor(rate, dtype=torch.float).to(device)
             snr_batch = snr_cuda.unsqueeze(0).expand(B, -1)
