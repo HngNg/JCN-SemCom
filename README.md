@@ -1,5 +1,5 @@
-# JCN Semantic Communication
-This is a cooperative communication system with 4 nodes: source node, relay node, eavesdropper node and destination node. 
+# JCN Cooperative Semantic Communication
+This is a research project working on a cooperative communication system with 4 nodes: source node, relay node, eavesdropper node and destination node.
 
 The relay node is to support the communication between source node and destination node. On the other hand, the eavesdropper node is to simulate eavesdropping attacks on source-destination and relay-destination channel.
 
