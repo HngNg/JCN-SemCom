@@ -15,6 +15,7 @@ from torchvision import datasets, transforms
 
 from utils import logger_configuration, seed_torch
 
+from Semantic_SwinT_cifar10 import SwinJSCCInferenceCIFAR10
 from Semantic_SwinT import SwinJSCCInference
 from SemanticNN_ import SemanticNN
 
@@ -100,6 +101,13 @@ parser.add_argument(
     choices=["small", "base", "large"],
     help="SwinJSCC model size",
 )
+parser.add_argument(
+    "--user",
+    type=str,
+    default="Bob",
+    choices=["Bob", "Eve"],
+    help="User at receiver",
+)
 args = parser.parse_args()
 
 
@@ -129,59 +137,39 @@ class config():
     tot_epoch = 10000000
 
 
-    # save_model_freq = 100
-    # image_dims = (3, 256, 256)
-    # base_path = "Dataset/HR_Image_dataset/"
-    # test_data_dir = ["Dataset/HR_Image_dataset/clic2021/test/"]
+    save_model_freq = 100
+    image_dims = (3, 256, 256)
+    base_path = "Dataset/HR_Image_dataset/"
+    test_data_dir = ["Dataset/HR_Image_dataset/clic2021/test/"]
 
-    # train_data_dir = [base_path + '/clic2020/**',
-    #                     base_path + '/clic2021/train',
-    #                     base_path + '/clic2021/valid',
-    #                     base_path + '/clic2022/val',
-    #                     base_path + '/DIV2K_train_HR',
-    #                     base_path + '/DIV2K_valid_HR']
-    # batch_size = 16
-    # downsample = 4
-    # channel_number = 96
-    # encoder_kwargs = dict(
-    #     img_size=(image_dims[1], image_dims[2]), patch_size=2, in_chans=3,
-    #     embed_dims=[128, 192, 256, 320], depths=[2, 2, 6, 2], num_heads=[4, 6, 8, 10], C=channel_number,
-    #     window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
-    #     norm_layer=nn.LayerNorm, patch_norm=True,
-    # )
-    # decoder_kwargs = dict(
-    #     img_size=(image_dims[1], image_dims[2]),
-    #     embed_dims=[320, 256, 192, 128], depths=[2, 6, 2, 2], num_heads=[10, 8, 6, 4], C=channel_number,
-    #     window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
-    #     norm_layer=nn.LayerNorm, patch_norm=True,
-    # )
-    save_model_freq = 5
-    image_dims = (3, 32, 32)
-    train_data_dir = "./Dataset/CIFAR10/"
-    test_data_dir = "./Dataset/CIFAR10/"
-    batch_size = 128
-    downsample = 2
-    channel_number = int(args.C)
+    train_data_dir = [base_path + '/clic2020/**',
+                        base_path + '/clic2021/train',
+                        base_path + '/clic2021/valid',
+                        base_path + '/clic2022/val',
+                        base_path + '/DIV2K_train_HR',
+                        base_path + '/DIV2K_valid_HR']
+    batch_size = 16
+    downsample = 4
+    channel_number = 96
     encoder_kwargs = dict(
         img_size=(image_dims[1], image_dims[2]), patch_size=2, in_chans=3,
-        embed_dims=[128, 256], depths=[2, 4], num_heads=[4, 8], C=channel_number,
-        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        embed_dims=[128, 192, 256, 320], depths=[2, 2, 6, 2], num_heads=[4, 6, 8, 10], C=channel_number,
+        window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
     decoder_kwargs = dict(
         img_size=(image_dims[1], image_dims[2]),
-        embed_dims=[256, 128], depths=[4, 2], num_heads=[8, 4], C=channel_number,
-        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        embed_dims=[320, 256, 192, 128], depths=[2, 6, 2, 2], num_heads=[10, 8, 6, 4], C=channel_number,
+        window_size=8, mlp_ratio=4., qkv_bias=True, qk_scale=None,
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
+
 
 
 # # =============================================================================
 # #  Create the MS-SSIM metric and send it to the selected device
 # # =============================================================================
-# CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
-CalcuSSIM = MS_SSIM(window_size=3, data_range=1., levels=4, channel=3).to("mps")
-
+CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
 
 
 def scale_8bit_weight(x):
@@ -331,7 +319,7 @@ def E_distance(x, y):
     return ((x1 - y1) ** 2).sum() / x1.size
 
 
-def sf_relay(x, snr1, rho):
+def sf_relay(x, snr1, rho, result_dir):
     # Main simulation function implementing the semantic relay system.
     # This function encodes an image into two bitstreams, sends them over noisy channels,
     # then iteratively performs joint LDPC decoding with extrinsic (side) information exchange.
@@ -340,7 +328,7 @@ def sf_relay(x, snr1, rho):
     d_v = 2  # Number of parity-check equations per bit
     d_c = 3  # Number of bits per parity-check equation
 
-    imgdir = f"images_psnr_cifar/snr{snr1}-rho{rho:g}"
+    imgdir = result_dir + f"snr{snr1}-rho{rho:g}"
     os.makedirs(imgdir, exist_ok=True)
     print("x.shape: ", x.shape)
 
@@ -365,7 +353,11 @@ def sf_relay(x, snr1, rho):
     C1 = LDPC_enc(G, X1)
 
     # Simulate transmission by adding Gaussian noise.
-    Y1 = LDPC.add_gaussian_noise(C1, snr1, seed=seed)
+    if (args.user == "Eve"):
+        noise_factor = 100
+        Y1 = LDPC.add_gaussian_noise(C1, snr1, seed=seed) + noise_factor
+    else:
+        Y1 = LDPC.add_gaussian_noise(C1, snr1, seed=seed)
 
     # Initialize LDPC decoding: get initial LLRs and decoder parameters.
     Lc1, DEC_para1 = LDPC_dec_init(H, Y1, snr1, g1, n)
@@ -473,7 +465,8 @@ def sf_relay(x, snr1, rho):
         X1_hat = hard_decision(Lp1, g1, n1, n, k)
 
         # Log various metrics to a CSV file for later analysis.
-        with open(f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv", mode="a", newline="") as file:
+        csv_path = result_dir + f"snr{snr1:d}-rho{rho:g}.csv"
+        with open(csv_path, mode="a", newline="") as file:
             writer = csv.writer(file)
             data = [e, i, s1, j1, ed1s, ed1, ed2, psnr.item(), Lp1_max, La1_max, Lp2_max, La2_max]
             writer.writerow(data)
@@ -487,7 +480,7 @@ if __name__ == "__main__":
 
     seed_torch()
     logger = logger_configuration(config, save_log=False)
-    logger.info(config.__dict__)
+    # logger.info(config.__dict__)
     torch.manual_seed(seed=config.seed)
     # train_loader, test_loader = get_loader(args, config)
     # data_tf = transforms.Compose([
@@ -507,9 +500,20 @@ if __name__ == "__main__":
 
     global_step = 0
     
-    model_path = "SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
-    simulator = SwinJSCCInference(model_path, device="mps", save_log=True)
+    # model_path = "SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
+    if (args.trainset == "CIFAR10"):
+        logger.info("Using CIFAR10 checkpoint.")
+        model_path = "./SwinJSCC_w/ model/2025-02-28 23:23:04_EP5.model"
+        simulator = SwinJSCCInferenceCIFAR10(model_path, device="mps", save_log=True, user=args.user)
+    else:
+        logger.info("Using DIV2K checkpoint.")
+        model_path = "./SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
+        simulator = SwinJSCCInference(model_path, device="mps", save_log=True, user=args.user)
 
+    if (args.user == "Eve"):
+        result_dir = "./history/images_psnr_eve/"
+    else:
+        result_dir = "./history/images_psnr_test/"
 
     # -------------------------------------
 
@@ -537,13 +541,15 @@ if __name__ == "__main__":
 
             # Iterate over different corruption probabilities (rho) and SNR values.
             for rho in [0.05, 0.35, 1, 0]:
+            # for rho in [1, 0]:
                 for snr1 in range(-5, 10):
+                # for snr1 in range(5, 6):
                 # for snr1 in range (10,11):
                     print(
                         f"===================== rho={rho:g}, snr={snr1:d} ===================="
                     )
-                    os.makedirs("images_psnr_cifar/", exist_ok=True)
-                    fname = f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv"
+                    os.makedirs(result_dir, exist_ok=True)
+                    fname = result_dir + f"snr{snr1:d}-rho{rho:g}.csv"
                     if not os.path.exists(fname):
                         with open(fname, mode="a", newline="") as file:
                             writer = csv.writer(file)
@@ -564,14 +570,12 @@ if __name__ == "__main__":
                             writer.writerow(data)
 
                     # Run the simulation function (which includes extrinsic information exchange).
-                    sf_relay(im, snr1, rho)
+                    sf_relay(im, snr1, rho, result_dir=result_dir)
                     # X2, CBR, psnr, msssim = simulator.infer(im.reshape([batch_size, 3, 96, 96]).to(device), snr1)
 
             counter += 1
             if counter >= 32:
                 break
-            #Take the first image only
-            break
 
         # ------------------------------- Below code is to test a single image -------------------------------
 
@@ -592,8 +596,8 @@ if __name__ == "__main__":
         #         print(
         #             f"===================== rho={rho:g}, snr={snr1:d} ===================="
         #         )
-        #         os.makedirs("images_psnr_cifar/", exist_ok=True)
-        #         fname = f"images_psnr_cifar/snr{snr1:d}-rho{rho:g}.csv"
+                # os.makedirs(result_dir, exist_ok=True)
+                # fname = result_dir + f"snr{snr1:d}-rho{rho:g}.csv"
         #         if not os.path.exists(fname):
         #             with open(fname, mode="a", newline="") as file:
         #                 writer = csv.writer(file)

@@ -31,46 +31,28 @@ class config():
     learning_rate = 0.0001
     tot_epoch = 10000000
 
-    save_model_freq = 100
-    image_dims = (3, 256, 256)  # Default to 256×256 if used in training
-    train_data_dir = []
-    test_data_dir = []
-    batch_size = 1
-    downsample = 4
+    save_model_freq = 5
+    image_dims = (3, 32, 32)
+    train_data_dir = "/media/D/Dataset/CIFAR10/"
+    test_data_dir = "/media/D/Dataset/CIFAR10/"
+    batch_size = 128
+    downsample = 2
     channel_number = None
-
-    # Example for the 'base' model_size on 256×256
     encoder_kwargs = dict(
-        img_size=(256, 256),
-        patch_size=2,
-        in_chans=3,
-        embed_dims=[128, 192, 256, 320],
-        depths=[2, 2, 6, 2],
-        num_heads=[4, 6, 8, 10],
-        C=channel_number,
-        window_size=8,
-        mlp_ratio=4.,
-        qkv_bias=True,
-        qk_scale=None,
-        norm_layer=nn.LayerNorm,
-        patch_norm=True,
+        img_size=(image_dims[1], image_dims[2]), patch_size=2, in_chans=3,
+        embed_dims=[128, 256], depths=[2, 4], num_heads=[4, 8], C=channel_number,
+        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        norm_layer=nn.LayerNorm, patch_norm=True,
     )
     decoder_kwargs = dict(
-        img_size=(256, 256),
-        embed_dims=[320, 256, 192, 128],
-        depths=[2, 6, 2, 2],
-        num_heads=[10, 8, 6, 4],
-        C=channel_number,
-        window_size=8,
-        mlp_ratio=4.,
-        qkv_bias=True,
-        qk_scale=None,
-        norm_layer=nn.LayerNorm,
-        patch_norm=True,
+        img_size=(image_dims[1], image_dims[2]),
+        embed_dims=[256, 128], depths=[4, 2], num_heads=[8, 4], C=channel_number,
+        window_size=2, mlp_ratio=4., qkv_bias=True, qk_scale=None,
+        norm_layer=nn.LayerNorm, patch_norm=True,
     )
 
 
-class SwinJSCCInference:
+class SwinJSCCInferenceCIFAR10:
     def __init__(self, model_path, device="mps", args=None, save_log=True, user="Bob"):
         self.device = torch.device(device)
         if args is None:
@@ -84,9 +66,9 @@ class SwinJSCCInference:
             parser.add_argument('--multiple-snr', type=str, default='10')
             parser.add_argument('--model_size', type=str, default='base')
             parser.add_argument('--training', action='store_false')
-
             args = parser.parse_args([])
         self.args = args
+
         self.config = config()
         self.config.user = user
         self.config.device = self.device
@@ -110,7 +92,7 @@ class SwinJSCCInference:
     def load_weights(self, model_path):
         self.logger.info(f"Loading model weights from {model_path}")
         pretrained = torch.load(model_path, map_location=self.device)
-        self.net.load_state_dict(pretrained, strict=True)
+        self.net.load_state_dict(pretrained, strict=False)
         del pretrained
         self.logger.info("Weights loaded successfully.")
 
@@ -236,7 +218,7 @@ if __name__ == '__main__':
 
     # 3) Instantiate the inference class
     #    Make sure you have already defined or imported SwinJSCCInference above.
-    simulator = SwinJSCCInference(model_path, device="mps", save_log=True)
+    simulator = SwinJSCCInferenceCIFAR10(model_path, device="mps", save_log=True)
 
     # 4) Run inference on each batch of the test data
     #    Each batch is shape [batch_size, 3, 96, 96].

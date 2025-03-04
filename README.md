@@ -1,5 +1,11 @@
 # JCN Semantic Communication
-There are 2 version of the system, one with MIMO and one without MIMO.
+This is a cooperative communication system with 4 nodes: source node, relay node, eavesdropper node and destination node. 
+
+The relay node is to support the communication between source node and destination node. On the other hand, the eavesdropper node is to simulate eavesdropping attacks on source-destination and relay-destination channel.
+
+Swin Transformer architecture is used to implement semantic encoder and decoder, with the intuition similar to the way auto-encoder works. To prevent eavesdroppers from sniffing data, aftificial noise is jammed into the channels to disrupt the reconstruction process at eavesdropper node.
+
+There are 2 version of the system, one is single-input single-output and one is multiple-input multiple-output.
 
 ## Installation
 ```
@@ -23,15 +29,15 @@ Dataset
 All pretrained models are in [Google Drive](https://drive.google.com/drive/folders/1_EouRY4yYvMCtamX2ReBzEd5YBQbyesc?usp=sharing).
 
 ```
-python main.py --trainset DIV2K --testset CLIC21 --distortion-metric MSE --model SwinJSCC_w/_SAandRA --channel-type awgn --model_size base
+python main.py --trainset DIV2K  --distortion-metric MSE --model SwinJSCC_w/_SAandRA --channel-type awgn --model_size base
 ```
 
 ### Running the SwinJSCC_w/o_SAandRA model as Inference
 The command lines to use the system in both version are the same:
 ```
-python main.py --trainset DIV2K --testset kodak -- distortion-metric MSE --model SwinJSCC_w/o_SAandRA model --channel-type awgn --C 96 -- multiple-snr 10 --model_size base
+python SFST.py --trainset DIV2K --testset CLIC21 -- distortion-metric MSE --model SwinJSCC_w/o_SAandRA model --channel-type awgn --C 96 -- multiple-snr 10 --model_size base
 ```
-This method can be apply on your own images.
+This system can reconstruct your own images.
 
 ## Related links
 * Sionna An Open-Source Library for Next-Generation Physical Layer Research: https://github.com/NVlabs/sionna

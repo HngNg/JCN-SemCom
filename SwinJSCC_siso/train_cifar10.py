@@ -305,7 +305,7 @@ if __name__ == '__main__':
     seed_torch()
     torch.manual_seed(seed=config.seed)
     net = SwinJSCC(args, config)
-    model_path = "SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
+    # model_path = "SwinJSCC_w/SA&RA/SwinJSCC_w_SAandRA_AWGN_HRimage_cbr_psnr_snr.model"
     # load_weights(model_path)
     net = net.to("mps")
     model_params = [{'params': net.parameters(), 'lr': 0.0001}]

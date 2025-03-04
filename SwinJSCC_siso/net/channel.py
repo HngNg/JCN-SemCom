@@ -16,6 +16,7 @@ class Channel(nn.Module):
         self.config = config
         self.chan_type = args.channel_type
         self.device = config.device
+        self.user = config.user
         self.h = torch.sqrt(torch.randn(1) ** 2
                             + torch.randn(1) ** 2) / 1.414
         if config.logger:
@@ -28,8 +29,10 @@ class Channel(nn.Module):
         noise_real = torch.normal(mean=0.0, std=std, size=np.shape(input_layer), device=device)
         noise_imag = torch.normal(mean=0.0, std=std, size=np.shape(input_layer), device=device)
         noise = noise_real + 1j * noise_imag
-        return input_layer + noise
-
+        noise_factor = 100
+        if (self.user == 'Eve'):
+            return input_layer + noise + noise_factor
+        return input_layer + noise 
     def rayleigh_noise_layer(self, input_layer, std, name=None):
         noise_real = torch.normal(mean=0.0, std=std, size=np.shape(input_layer))
         noise_imag = torch.normal(mean=0.0, std=std, size=np.shape(input_layer))
