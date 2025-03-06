@@ -6,12 +6,12 @@ temp/Semantic_Forward/*
 */image*
 
 */history/*
-*/data/*
 */dtmp/*
 */Dataset/*
 */Semantic_Forward*
 */visualizer*
 __azurite_db_blob*
+*cifar-10*
 
 
 # pixi environments
