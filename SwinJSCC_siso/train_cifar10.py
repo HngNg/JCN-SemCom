@@ -55,6 +55,7 @@ class config():
     samples = os.path.join(workdir, 'samples')
     models = os.path.join(workdir, 'models')
     logger = None
+    user = "Bob"
 
     # training details
     normalize = False
@@ -62,7 +63,7 @@ class config():
     tot_epoch = 100
 
     if args.trainset == 'CIFAR10':
-        save_model_freq = 5
+        save_model_freq = 25
         image_dims = (3, 32, 32)
         train_data_dir = "./Dataset/CIFAR10/"
         test_data_dir = "./Dataset/CIFAR10/"
@@ -320,7 +321,7 @@ if __name__ == '__main__':
             if (epoch + 1) % config.save_model_freq == 0:
                 save_model(net, save_path=os.path.join(config.models, '{}_EP{}.model'.format(config.filename, epoch + 1)))
                 # For demonstration, break out after saving once.
-                break
+                # break
     else:
         # In test mode, you might implement CSV logging similarly.
         pass

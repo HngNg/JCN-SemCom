@@ -31,7 +31,7 @@ class Channel(nn.Module):
         noise = noise_real + 1j * noise_imag
         noise_factor = 100
         if (self.user == 'Eve'):
-            return input_layer + noise + noise_factor
+            return input_layer + noise * noise_factor
         return input_layer + noise 
     def rayleigh_noise_layer(self, input_layer, std, name=None):
         noise_real = torch.normal(mean=0.0, std=std, size=np.shape(input_layer))

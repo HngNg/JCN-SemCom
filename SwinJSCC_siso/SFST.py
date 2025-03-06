@@ -164,12 +164,10 @@ class config():
         norm_layer=nn.LayerNorm, patch_norm=True,
     )
 
-
-
-# # =============================================================================
-# #  Create the MS-SSIM metric and send it to the selected device
-# # =============================================================================
-CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
+    # # =============================================================================
+    # #  Create the MS-SSIM metric and send it to the selected device
+    # # =============================================================================
+    CalcuSSIM = MS_SSIM(window_size=3, data_range=1.0, levels=4, channel=3).to(device)
 
 
 def scale_8bit_weight(x):
@@ -390,6 +388,8 @@ def sf_relay(x, snr1, rho, result_dir):
         mse = squared_difference(x * 255., X2.clamp(0., 1.) * 255.)
         mse_val = mse.mean()
         psnr = 10 * (torch.log(255. * 255. / mse_val) / np.log(10))
+        msssim_val = 1 - config.CalcuSSIM(x, X2.clamp(0., 1.)).mean().item()
+
 
         # Prepare images for visualization - Turn torch arr to np arr.
         X2_data = to_data(X2.reshape([batch_size, 3, 96, 96]))
@@ -405,7 +405,7 @@ def sf_relay(x, snr1, rho, result_dir):
         ed1 = E_distance(x, X1_data)
         ed2 = E_distance(x, X2_data)
         print(f"EDs: {ed1s:g}, EDj: {ed1:g}, ED2: {ed2:g}")
-        print(f"PSNR: {psnr:g}")
+        print(f"PSNR: {psnr:g}, MS-SSIM: {msssim_val:g}")
         save_img(
             merged,
             os.path.join(
@@ -468,7 +468,7 @@ def sf_relay(x, snr1, rho, result_dir):
         csv_path = result_dir + f"snr{snr1:d}-rho{rho:g}.csv"
         with open(csv_path, mode="a", newline="") as file:
             writer = csv.writer(file)
-            data = [e, i, s1, j1, ed1s, ed1, ed2, psnr.item(), Lp1_max, La1_max, Lp2_max, La2_max]
+            data = [e, i, s1, j1, ed1s, ed1, ed2, psnr.item(), msssim_val, Lp1_max, La1_max, Lp2_max, La2_max]
             writer.writerow(data)
 
 
@@ -511,9 +511,9 @@ if __name__ == "__main__":
         simulator = SwinJSCCInference(model_path, device="mps", save_log=True, user=args.user)
 
     if (args.user == "Eve"):
-        result_dir = "./history/images_psnr_eve/"
+        result_dir = "./history/images_psnr_eve2/"
     else:
-        result_dir = "./history/images_psnr_test/"
+        result_dir = "./history/images_psnr_ssim/"
 
     # -------------------------------------
 
@@ -562,6 +562,7 @@ if __name__ == "__main__":
                                 "EDj",
                                 "ED_semantic",
                                 "PSNR",
+                                "MS-SSIM",
                                 "Lp1_max",
                                 "La1_max",
                                 "Lp2_max",
