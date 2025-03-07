@@ -38,6 +38,8 @@ parser.add_argument('--multiple-snr', type=str, default='13',
                     help='random or fixed snr')
 parser.add_argument('--model_size', type=str, default='base',
                     choices=['small', 'base', 'large'], help='SwinJSCC model size')
+parser.add_argument('--train_epoch', type=str, default='10',
+                    help='SwinJSCC model size')
 args = parser.parse_args()
 
 class config():
@@ -63,7 +65,7 @@ class config():
     tot_epoch = 100
 
     if args.trainset == 'CIFAR10':
-        save_model_freq = 25
+        save_model_freq = args.train_epoch
         image_dims = (3, 32, 32)
         train_data_dir = "./Dataset/CIFAR10/"
         test_data_dir = "./Dataset/CIFAR10/"
@@ -294,6 +296,8 @@ if __name__ == '__main__':
     # Configure logger (assuming logger_configuration sets up a FileHandler for config.log)
     logger = logger_configuration(config, save_log=False)
     logger.info(config.__dict__)
+    logger.info(f"Training Epoch: {args.train_epoch}")
+
     
     # Create CSV log file with name based on current date and time.
     csv_log_filename = os.path.join(config.workdir, 'Log_{}.csv'.format(config.filename))
