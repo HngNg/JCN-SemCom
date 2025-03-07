@@ -65,7 +65,7 @@ class config():
     tot_epoch = 100
 
     if args.trainset == 'CIFAR10':
-        save_model_freq = args.train_epoch
+        save_model_freq = int(args.train_epoch)
         image_dims = (3, 32, 32)
         train_data_dir = "./Dataset/CIFAR10/"
         test_data_dir = "./Dataset/CIFAR10/"
