@@ -12,7 +12,7 @@ temp/Semantic_Forward/*
 */visualizer*
 __azurite_db_blob*
 *cifar-10*
-
+SwinJSCC_siso_cuda
 
 # pixi environments
 .pixi
