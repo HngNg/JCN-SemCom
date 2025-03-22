@@ -536,15 +536,22 @@ if __name__ == "__main__":
             # im = Variable(im)
             im = im.to(device)
 
+            # # ----- Temporarily test only 1 image -----
+            # index = 42
+            # im, label = test_set[index]
+            # im = im.unsqueeze(0).to(device)
+            # # ----- Comment this part when running inference on testset -----
 
         # for batch_idx, batch in enumerate(test_loader):
 
             # Iterate over different corruption probabilities (rho) and SNR values.
             for rho in [0.05, 0.35, 1, 0]:
-            # for rho in [1, 0]:
                 for snr1 in range(-5, 10):
-                # for snr1 in range(5, 6):
-                # for snr1 in range (10,11):
+
+                # # ----- Temporarily test only 1 image -----
+                # for snr1 in range (-5, 10, 5):    
+                # # ----- Comment this part when running inference on testset -----
+
                     print(
                         f"===================== rho={rho:g}, snr={snr1:d} ===================="
                     )
@@ -577,53 +584,8 @@ if __name__ == "__main__":
             counter += 1
             if counter >= 32:
                 break
-
-        # ------------------------------- Below code is to test a single image -------------------------------
-
-
-        # index = 42
-        # im, label = test_set[index]
-        # im = im.unsqueeze(0)
         
-        # print("Epoch %d-%d:" % (e, counter))
-        # # im = Variable(im)
-        # im = im.to(device)
-
-        # # Iterate over different corruption probabilities (rho) and SNR values.
-        # for rho in [0.05, 0.35, 1, 0]:
-        #     snr_list =  [-5, 0, 5]
-        #     for snr1 in snr_list:
-        #     # for snr1 in range (10,11):
-        #         print(
-        #             f"===================== rho={rho:g}, snr={snr1:d} ===================="
-        #         )
-                # os.makedirs(result_dir, exist_ok=True)
-                # fname = result_dir + f"snr{snr1:d}-rho{rho:g}.csv"
-        #         if not os.path.exists(fname):
-        #             with open(fname, mode="a", newline="") as file:
-        #                 writer = csv.writer(file)
-        #                 data = [
-        #                     "epoch",
-        #                     "iter_round",
-        #                     "BERs",
-        #                     "BERj",
-        #                     "EDs",
-        #                     "EDj",
-        #                     "ED_semantic",
-        #                     "PSNR",
-        #                     "Lp1_max",
-        #                     "La1_max",
-        #                     "Lp2_max",
-        #                     "La2_max",
-        #                 ]
-        #                 writer.writerow(data)
-
-        #         # Run the simulation function (which includes extrinsic information exchange).
-        #         sf_relay(im, snr1, rho)
-        #         # X2, CBR, psnr, msssim = simulator.infer(im.reshape([batch_size, 3, 96, 96]).to(device), snr1)
-
-        # counter += 1
-        # if counter >= 32:
+        # # ----- Temporarily test only 1 image -----
         #     break
-        # #Take the first image only
         # break
+        # # ----- Comment this part when running inference on testset -----

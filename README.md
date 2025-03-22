@@ -5,7 +5,6 @@ The relay node is to support the communication between source node and destinati
 
 Swin Transformer architecture is used to implement semantic encoder and decoder, with the intuition similar to the way auto-encoder works. To prevent eavesdroppers from sniffing data, aftificial noise is jammed into the channels to disrupt the reconstruction process at eavesdropper node.
 
-There are 2 version of the system, one is single-input single-output and one is multiple-input multiple-output.
 
 ## Installation
 ```
@@ -26,20 +25,20 @@ Dataset
 
 ## Usage
 
-All pretrained models are in [Google Drive](https://drive.google.com/drive/folders/1_EouRY4yYvMCtamX2ReBzEd5YBQbyesc?usp=sharing).
-
 ```
-python main.py --trainset DIV2K  --distortion-metric MSE --model SwinJSCC_w/_SAandRA --channel-type awgn --model_size base
+python main.py --trainset DIV2K  --distortion-metric MSE --channel-type awgn --model_size base
 ```
 
-### Running the SwinJSCC_w/o_SAandRA model as Inference
+### Running the model as Inference
 The command lines to use the system in both version are the same:
 ```
-python SFST.py --trainset DIV2K --testset CLIC21 -- distortion-metric MSE --model SwinJSCC_w/o_SAandRA model --channel-type awgn --C 96 -- multiple-snr 10 --model_size base
+python SFST.py --trainset DIV2K --testset CLIC21 -- distortion-metric MSE --channel-type awgn --C 96 -- multiple-snr 10 --model_size base
 ```
 This system can reconstruct your own images.
 
 ## Related links
+*Swin Transformer: https://github.com/microsoft/Swin-Transformer
+* SwinJSCC: https://github.com/semcomm/SwinJSCC
 * Sionna An Open-Source Library for Next-Generation Physical Layer Research: https://github.com/NVlabs/sionna
 * DIV2K image dataset: https://data.vision.ee.ethz.ch/cvl/DIV2K/
 * Kodak image dataset: http://r0k.us/graphics/kodak/

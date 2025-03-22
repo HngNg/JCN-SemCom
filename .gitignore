@@ -4,6 +4,11 @@
 *.DS_Store
 temp/Semantic_Forward/*
 */image*
+*.png
+*.zip
+*/post_process.py
+*/BPG_JPEG_WebP+LDPC+QAM+AWGN_Ray_Rician/
+*/SwinJSCC_mimo/*
 
 */history/*
 */dtmp/*
